@@ -1,0 +1,13 @@
+[project]
+name = "speak-desktop"
+version = "0.1.0"
+description = "中文语音输入：免费云端优先，本地按需备用"
+requires-python = ">=3.14"
+dependencies = ["requests>=2.32", "sounddevice>=0.5", "numpy>=2.3", "pywin32>=311", "psutil>=7", "pillow>=12", "beautifulsoup4>=4.14", "comtypes>=1.4", "rich>=14", "websockets>=15", "gguf>=0.17", "onnxruntime-directml>=1.23", "soundfile>=0.13", "srt>=3.5"]
+
+[dependency-groups]
+dev = ["pytest>=8", "pyinstaller>=6.17"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

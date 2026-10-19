@@ -1,0 +1,9 @@
+[
+  {
+    "audio": "D:/speak/samples/replace-with-real-recording.wav",
+    "reference": "请使用 Ghidra 检查 ELF 文件，不要关闭 ASLR。端口是 8080，不是 8000。",
+    "terms": ["Ghidra", "ELF", "ASLR"],
+    "critical": ["不要", "8080", "不是", "8000"],
+    "split": "acceptance"
+  }
+]

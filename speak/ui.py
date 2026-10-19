@@ -37,7 +37,7 @@ class App:
         self.preview_widget = None
         self._preview_hwnd = None
         self.drag_origin = None
-        root.title("轻声 Speak")
+        root.title("轻声")
         root.configure(bg=BG)
         root.overrideredirect(True)
         root.attributes("-topmost", True)
@@ -120,7 +120,7 @@ class App:
                     self.open_preview()
             except RecognitionError as exc:
                 self.status = str(exc)
-                messagebox.showinfo("轻声 Speak", str(exc), parent=self.root)
+                messagebox.showinfo("轻声", str(exc), parent=self.root)
                 self.open_settings()
 
     def cancel(self):
@@ -298,7 +298,7 @@ class App:
         if self.settings_window and self.settings_window.winfo_exists():
             self.settings_window.lift()
             return
-        window = self.settings_window = self.window("轻声 Speak · 设置", "650x740")
+        window = self.settings_window = self.window("轻声 · 设置", "650x740")
         window.minsize(620, 720)
         header = tk.Frame(window, bg=BG, padx=22, pady=16)
         header.pack(fill="x")
@@ -448,7 +448,7 @@ class App:
     def show_result(self):
         task = self.controller.task
         shown_task_id = task.id if task else None
-        window = self.window("轻声 Speak · 本次结果", "650x480")
+        window = self.window("轻声 · 本次结果", "650x480")
         message = self.last_error or ("已保存在最近文字。可复制后粘贴到目标输入框。" if self.last_text else "还没有识别结果。")
         ttk.Label(window, text=message, wraplength=580, padding=20).pack(fill="x")
         text = tk.Text(window, wrap="word", font=("Microsoft YaHei UI", 11), padx=12, pady=12)
@@ -481,7 +481,7 @@ class App:
     def open_history(self):
         if self.history_window and self.history_window.winfo_exists():
             self.history_window.destroy()
-        window = self.history_window = self.window("轻声 Speak · 最近 7 天文字", "760x560")
+        window = self.history_window = self.window("轻声 · 最近 7 天文字", "760x560")
         rows = self.controller.history.list()
         ttk.Label(window, text="最近文字", font=("Microsoft YaHei UI", 16, "bold"), padding=18).pack(anchor="w")
         listing = tk.Listbox(window, height=7, font=("Microsoft YaHei UI", 10), exportselection=False)

@@ -1,2 +1,2 @@
-"""Speak desktop input application."""
+"""轻声：中文语音输入工具。"""
 __version__ = "0.1.0"

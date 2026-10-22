@@ -4,6 +4,7 @@ import hashlib
 import json
 import threading
 import time
+import wave
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -96,7 +97,7 @@ class CloudProvider:
         self.secrets = secrets
         self.guard = guard or FreePriceGuard()
 
-    def transcribe(self, path, terms, cancel, model=SENSEVOICE):
+    def transcribe(self, path, terms, cancel, model=SENSEVOICE, progress=None):
         if model != SENSEVOICE:
             raise RecognitionError("unvalidated", "Qwen 云端尚未完成接口及准确率验证，暂不启用。")
         key = self.secrets.load()
@@ -105,16 +106,42 @@ class CloudProvider:
         self.guard.check(model)
         if cancel.is_set():
             raise RecognitionError("cancelled", "已取消")
-        started = time.monotonic()
         try:
-            with open(path, "rb") as audio:
-                response = requests.post(TRANSCRIBE_URL, headers={"Authorization": f"Bearer {key}"}, files={"file": ("recording.wav", audio, "audio/wav")}, data={"model": model}, timeout=(10, 90))
-        except requests.RequestException:
-            raise RecognitionError("network", "云端连接失败或超时，录音已保留，可重试或选择本地识别。") from None
-        if cancel.is_set():
-            raise RecognitionError("cancelled", "已取消")
+            with wave.open(str(path), "rb") as audio:
+                if audio.getnframes() == 0:
+                    raise RecognitionError("empty_audio", "录音为空，请检查麦克风是否有声音后重新录音；未上传云端。")
+                if (audio.getframerate(), audio.getnchannels(), audio.getsampwidth()) != (16000, 1, 2):
+                    raise RecognitionError("audio", "录音格式不支持，请使用 16kHz 单声道 PCM16 WAV，原录音已保留。")
+        except (OSError, EOFError, wave.Error):
+            raise RecognitionError("audio", "无法读取录音，请检查文件是否完整，原录音已保留。") from None
+        started = time.monotonic()
+        for attempt in range(3):
+            if cancel.is_set():
+                raise RecognitionError("cancelled", "已取消")
+            # Recheck the guard before each upload (including a retry after midnight).
+            self.guard.check(model)
+            try:
+                # Reopen for every attempt; otherwise retries upload an exhausted stream.
+                with open(path, "rb") as audio:
+                    response = requests.post(TRANSCRIBE_URL, headers={"Authorization": f"Bearer {key}"}, files={"file": ("recording.wav", audio, "audio/wav")}, data={"model": model}, timeout=(10, 90))
+            except requests.RequestException:
+                raise RecognitionError("network", "云端连接失败或超时，录音已保留，可重试或选择本地识别。") from None
+            if cancel.is_set():
+                response.close()
+                raise RecognitionError("cancelled", "已取消")
+            if response.status_code not in (500, 502, 503, 504) or attempt == 2:
+                break
+            status = response.status_code
+            response.close()
+            if progress:
+                progress(f"云端暂时异常（HTTP {status}）· 自动重试 {attempt + 1}/2…")
+            if cancel.wait(1 if attempt == 0 else 2):
+                raise RecognitionError("cancelled", "已取消")
         if response.status_code != 200:
             code, message = {401: ("key", "API Key 无效，请在设置中更新。"), 403: ("permission", "账号无法使用服务，请检查实名认证和访问权限。"), 429: ("limit", "云端限流或额度不足，可稍后重试或改用本地。"), 402: ("quota", "免费服务不可用，已停止请求，请选择本地识别。")}.get(response.status_code, ("service", f"云端服务暂不可用（HTTP {response.status_code}），录音已保留。"))
+            response.close()
+            if code == "service" and attempt == 2:
+                message = f"云端已尝试 3 次，仍无法识别（HTTP {response.status_code}）。录音已保留，可稍后重试或点“本地识别”，无需重录。"
             raise RecognitionError(code, message)
         try:
             text = response.json()["text"]
@@ -122,5 +149,7 @@ class CloudProvider:
                 raise ValueError()
         except (ValueError, KeyError, TypeError):
             raise RecognitionError("response", "云端返回格式异常，录音已保留。") from None
+        finally:
+            response.close()
         # API has no documented hotword parameter: deliberately do not invent one.
         return Result(text.strip(), "cloud", model, time.monotonic() - started)

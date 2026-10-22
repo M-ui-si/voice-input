@@ -75,6 +75,51 @@ class Target:
     fingerprint: tuple
 
 
+def foreground_identity():
+    """Remember a destination window without activating or reading its text."""
+    try:
+        hwnd = win32gui.GetForegroundWindow()
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        return (hwnd, pid) if hwnd and pid != os.getpid() else None
+    except Exception:
+        return None
+
+
+def editable_element(element):
+    """Accept writable browser composers, including rich-text descendants."""
+    from comtypes.gen.UIAutomationClient import IUIAutomationValuePattern, IUIAutomationTextPattern
+    for _ in range(6):
+        if element is None or element.CurrentIsPassword or not element.CurrentIsEnabled:
+            return None
+        if element.CurrentControlType not in (50003, 50004, 50020, 50025, 50026, 50030, 50033):
+            return None
+        try:
+            value = element.GetCurrentPattern(10002).QueryInterface(IUIAutomationValuePattern)
+            # Do not walk from a read-only control into a different editor.
+            return None if value.CurrentIsReadOnly else element
+        except Exception:
+            pass
+        try:
+            text = element.GetCurrentPattern(10014).QueryInterface(IUIAutomationTextPattern)
+            readonly = text.DocumentRange.GetAttributeValue(40015)
+            if type(readonly) is bool:
+                return None if readonly else element
+        except Exception:
+            pass
+        try:
+            role = str(element.GetCurrentPropertyValue(30101) or "").lower().split()
+            props = str(element.GetCurrentPropertyValue(30102) or "").lower()
+            if "textbox" in role or "searchbox" in role:
+                return None if "readonly=true" in props or "disabled=true" in props else element
+        except Exception:
+            pass
+        try:
+            element = automation().ControlViewWalker.GetParentElement(element)
+        except Exception:
+            return None
+    return None
+
+
 def capture_target():
     try:
         hwnd = win32gui.GetForegroundWindow()
@@ -84,13 +129,15 @@ def capture_target():
         element = automation().GetFocusedElement()
         if element.CurrentIsPassword or not element.CurrentIsEnabled or not element.CurrentHasKeyboardFocus:
             return None
-        # Editable inputs, contenteditable documents; never arbitrary buttons/links.
-        if element.CurrentControlType not in (50004, 50030):
+        element = editable_element(element)
+        if element is None:
             return None
-        fp = selection_fingerprint(element)
-        if fp is None:
+        runtime_id = element.GetRuntimeId()
+        if not runtime_id:
             return None
-        return Target(hwnd, pid, tuple(element.GetRuntimeId()), fp)
+        # Identity is sufficient for current-caret insertion. Do not read or hash
+        # the entire composer: editing it during recording is legitimate.
+        return Target(hwnd, pid, tuple(runtime_id), (None, None, None))
     except Exception:
         return None
 
@@ -99,10 +146,9 @@ def target_matches(target):
     current = capture_target()
     if target is None or current is None:
         return False
-    # Keep the same editor and unchanged document, but honor the caret/selection
-    # position that is current when recognition finishes.
-    return (current.hwnd, current.pid, current.runtime_id, current.fingerprint[0]) == (
-        target.hwnd, target.pid, target.runtime_id, target.fingerprint[0]
+    # Recheck the same focused writable editor; honor its current text and caret.
+    return (current.hwnd, current.pid, current.runtime_id) == (
+        target.hwnd, target.pid, target.runtime_id
     )
 
 
@@ -170,6 +216,8 @@ def restore_pending_clipboard():
 def paste(target, text, schedule):
     global _pending_clipboard
     if not target_matches(target):
+        return False
+    if any(win32api.GetAsyncKeyState(k) & 0x8000 for k in (0x10, 0x11, 0x12, 0x5B, 0x5C)):
         return False
     # Materialized snapshots preserve rich text and files as well as Unicode text.
     # Never restore if the user changed the clipboard while the paste was pending.
@@ -250,6 +298,31 @@ def position_floating(root, x, y):
     hwnd = win32gui.GetAncestor(root.winfo_id(), win32con.GA_ROOT)
     win32gui.SetWindowPos(hwnd, 0, x, y, 286, 78,
                           win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER)
+
+
+def preview_geometry(anchor, work, width=420, height=170, gap=8):
+    """Place the preview beside the actual Win32 button rect, never covering it."""
+    left, top, right, bottom = work
+    ax, ay, ar, ab = anchor
+    x = max(left, min(ax, right - width))
+    y = max(top, min(ay, bottom - height))
+    candidates = [(ar + gap, y), (ax - gap - width, y),
+                  (x, ab + gap), (x, ay - gap - height)]
+    for px, py in candidates:
+        if left <= px and top <= py and px + width <= right and py + height <= bottom:
+            return px, py, width, height
+    # Small work areas: shrink into the largest free region rather than obscure controls.
+    regions = [(max(left, ar + gap), top, right, bottom),
+               (left, top, min(right, ax - gap), bottom),
+               (left, max(top, ab + gap), right, bottom),
+               (left, top, right, min(bottom, ay - gap))]
+    regions = [r for r in regions if r[2] > r[0] and r[3] > r[1]]
+    if not regions:
+        return None
+    l, t, r, b = max(regions, key=lambda area:
+                     min(width, area[2] - area[0]) * min(height, area[3] - area[1]))
+    w, h = min(width, r - l), min(height, b - t)
+    return max(l, min(ax, r - w)), max(t, min(ay, b - h)), w, h
 
 
 class WindowHooks:

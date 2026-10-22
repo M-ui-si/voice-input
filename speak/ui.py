@@ -9,6 +9,7 @@ from datetime import datetime
 from tkinter import ttk, messagebox, filedialog
 
 from .controller import Controller
+from .delivery import TextDelivery
 from .providers import RecognitionError
 from .storage import DATA, ROOT, Settings
 from . import windows
@@ -22,6 +23,7 @@ class App:
         self.settings = Settings.load()
         self.events = queue.Queue()
         self.controller = Controller(self.settings, self.events)
+        self.delivery = TextDelivery(root.after)
         self.status = "点击开始 · 右键设置"
         self.settings_window = None
         self.history_window = None
@@ -76,6 +78,7 @@ class App:
         if self.drag_origin and self.drag_origin[4] > 62 and self.drag_origin[4] < 245:
             x, y, wx, wy, _ = self.drag_origin
             windows.position_floating(self.root, wx + event.x_root - x, wy + event.y_root - y)
+            self._preview_position()
 
     def release(self, event):
         if not self.drag_origin:
@@ -108,13 +111,17 @@ class App:
         if state == "recording":
             self.controller.stop_recording()
             self.status = "正在整理识别结果…"
+            if self.preview_window and self.preview_window.winfo_exists():
+                self.preview_header.configure(text="正在整理识别结果…")
+                self.preview_stop.configure(state="disabled")
         elif state == "processing":
             self.status = "正在识别 · 右键可取消"
         elif state == "error":
             self.show_result()
         else:
             try:
-                self.controller.start(windows.capture_target())
+                self.delivery.cancel()
+                self.controller.start(windows.capture_target(), windows.foreground_identity())
                 self.status = "再点一次结束"
                 if self.settings.mode == "local":
                     self.open_preview()
@@ -124,6 +131,7 @@ class App:
                 self.open_settings()
 
     def cancel(self):
+        self.delivery.cancel()
         self.controller.cancel()
         self.status = "已取消 · 点击重新开始"
         self.last_error = ""
@@ -161,14 +169,9 @@ class App:
                     self.controller.state = "idle"
                     self.last_text, self.last_error = value.text, ""
                     task = self.controller.task
-                    pasted = not task.target_changed and windows.paste(task.target, value.text, self.root.after)
-                    if task.settings.mode == "local":
-                        self.update_preview(value.text, "识别完成 · 请检查后发送")
-                    self.status = "已填入 · 请检查后发送" if pasted else "文字已保存 · 点击最近文字"
-                    if pasted:
-                        self.close_preview()
-                    if not pasted:
-                        self.show_result()
+                    self.close_preview()
+                    self.delivery.queue(task, value.text)
+                    self.status = "识别完成 · 点回原输入框自动填入"
                 elif kind == "preview":
                     self.update_preview(value, "本地实时预览 · 识别中…")
         except queue.Empty:
@@ -178,14 +181,17 @@ class App:
             if task.recorder.error or (task.recorder.stream is not None and not task.recorder.stream.active):
                 task.recorder.error = task.recorder.error or "麦克风已断开，录音可能不完整。"
                 self.controller.stop_recording()
-            elif time.monotonic() - self.last_focus_check > 0.5:
-                if task.target and not windows.target_matches(task.target):
-                    task.target_changed = True
-                self.last_focus_check = time.monotonic()
-        elif self.controller.state == "processing" and task and task.target and not task.target_changed:
+        if task and self.controller.state in ("recording", "processing") and task.target is None:
             if time.monotonic() - self.last_focus_check > 0.5:
-                task.target_changed = not windows.target_matches(task.target)
+                current = windows.capture_target()
+                if current and (current.hwnd, current.pid) == task.target_window:
+                    task.target = current
                 self.last_focus_check = time.monotonic()
+        delivered = self.delivery.attempt(task)
+        if delivered == "inserted":
+            self.status = "已填入光标位置 · 请检查后发送"
+        elif delivered == "expired":
+            self.status = "文字已保存 · 菜单可查看结果"
         self.controller.local.release_if_idle()
         if time.monotonic() - self.last_cleanup > 3600:
             active = [self.controller.task.path] if self.controller.task else []
@@ -232,13 +238,19 @@ class App:
         import win32gui
 
         window = self.preview_window = tk.Toplevel(self.root)
+        window.withdraw()
         window.overrideredirect(True)
         window.attributes("-topmost", True)
         window.configure(bg="white", highlightthickness=1, highlightbackground=LINE)
-        self.preview_header = tk.Label(window, text="本地实时预览 · 等待第一段语音…", bg="white", fg=BLUE,
+        header = tk.Frame(window, bg="white")
+        header.pack(fill="x")
+        self.preview_stop = ttk.Button(header, text="停止录音", takefocus=False,
+                                       command=self.stop_preview_recording)
+        self.preview_stop.pack(side="right", padx=8, pady=4)
+        self.preview_header = tk.Label(header, text="本地实时预览 · 等待第一段语音…", bg="white", fg=BLUE,
                                        anchor="w", padx=12, pady=8,
                                        font=("Microsoft YaHei UI", 10, "bold"))
-        self.preview_header.pack(fill="x")
+        self.preview_header.pack(side="left", fill="x", expand=True)
         body = tk.Text(window, wrap="word", state="disabled", relief="flat", bg="white", fg=INK,
                        padx=12, pady=4, font=("Microsoft YaHei UI", 11), height=6, width=48)
         body.pack(fill="both", expand=True)
@@ -249,6 +261,7 @@ class App:
         win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,
                                style | win32con.WS_EX_NOACTIVATE | win32con.WS_EX_TOOLWINDOW)
         self._preview_hwnd = hwnd
+        window.deiconify()
         self._preview_position()
 
     def _preview_position(self):
@@ -258,14 +271,19 @@ class App:
         import win32con
         import win32gui
 
-        anchor_x, anchor_y = self.root.winfo_x(), self.root.winfo_y()
-        monitor = win32api.MonitorFromPoint((anchor_x, anchor_y), win32con.MONITOR_DEFAULTTONEAREST)
-        left, top, right, bottom = win32api.GetMonitorInfo(monitor)["Work"]
-        width, height = 420, 170
-        x = min(max(anchor_x + 286, left), right - width)
-        y = min(max(anchor_y, top), bottom - height)
-        win32gui.SetWindowPos(self._preview_hwnd, win32con.HWND_TOPMOST, x, y, width, height,
+        anchor = win32gui.GetWindowRect(self.hooks.hwnd)
+        monitor = win32api.MonitorFromWindow(self.hooks.hwnd, win32con.MONITOR_DEFAULTTONEAREST)
+        geometry = windows.preview_geometry(anchor, win32api.GetMonitorInfo(monitor)["Work"])
+        if geometry is None:
+            win32gui.ShowWindow(self._preview_hwnd, win32con.SW_HIDE)
+            return
+        win32gui.SetWindowPos(self._preview_hwnd, win32con.HWND_TOPMOST, *geometry,
                               win32con.SWP_NOACTIVATE | win32con.SWP_SHOWWINDOW)
+
+    def stop_preview_recording(self):
+        # A queued/double click may arrive after stop; it must never start a new recording.
+        if self.controller.state == "recording":
+            self.toggle()
 
     def update_preview(self, text, title):
         if not self.preview_widget or not self.preview_window or not self.preview_window.winfo_exists():
@@ -520,6 +538,7 @@ class App:
 
     def close(self):
         self.shutting_down = True
+        self.delivery.cancel()
         self.prepare_cancel.set()
         self.controller.shutdown()
         self.close_preview()

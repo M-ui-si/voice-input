@@ -33,14 +33,15 @@ def test_empty_writable_value_is_supported_and_read_only_is_rejected(monkeypatch
     assert windows.selection_fingerprint(element) is None
 
 
-def test_same_editor_accepts_new_caret_but_rejects_document_or_focus_change(monkeypatch):
+def test_same_editor_accepts_new_caret_and_content_but_rejects_focus_change(monkeypatch):
     original = windows.Target(1, 10, (2, 3), ("document", 4, 0))
     moved = replace(original, fingerprint=("document", 1, 2))
     monkeypatch.setattr(windows, "capture_target", lambda: moved)
     assert windows.target_matches(original)
+    monkeypatch.setattr(windows, "capture_target", lambda: replace(moved, fingerprint=("edited", 1, 2)))
+    assert windows.target_matches(original)
     for other in [replace(moved, hwnd=2), replace(moved, pid=11),
-                  replace(moved, runtime_id=(2, 4)),
-                  replace(moved, fingerprint=("edited", 1, 2)), None]:
+                  replace(moved, runtime_id=(2, 4)), None]:
         monkeypatch.setattr(windows, "capture_target", lambda: other)
         assert not windows.target_matches(original)
 

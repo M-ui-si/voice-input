@@ -19,6 +19,13 @@ def price_html(model=SENSEVOICE, price="免费"):
     return f'<section><div class="row"><div><a href="https://cloud.siliconflow.cn/models?target={model}" title="{model}">SenseVoice</a></div><div><span>{price}</span></div></div></section>'
 
 
+def cloud_audio(path):
+    with wave.open(str(path), "wb") as wav:
+        wav.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
+        wav.writeframes(b"\x01\x00" * 1600)
+    return path
+
+
 @pytest.mark.parametrize("html,expected", [
     (price_html(), True),
     (price_html(price="¥ 0.10"), False),
@@ -59,8 +66,8 @@ def test_network_failure_prevents_cloud_upload(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("status,code", [(401,"key"),(403,"permission"),(402,"quota"),(429,"limit"),(503,"service")])
 def test_cloud_failures_keep_recording_without_exposing_response(tmp_path, monkeypatch, status, code):
-    audio = tmp_path / "recording.wav"; audio.write_bytes(b"recording")
-    response = SimpleNamespace(status_code=status, text="secret account data")
+    audio = cloud_audio(tmp_path / "recording.wav")
+    response = SimpleNamespace(status_code=status, text="secret account data", close=lambda: None)
     monkeypatch.setattr(requests, "post", lambda *a, **kw: response)
     cloud = CloudProvider(SimpleNamespace(load=lambda: "private-key"), SimpleNamespace(check=lambda model: None))
     with pytest.raises(RecognitionError) as exc:
@@ -78,11 +85,11 @@ def test_unvalidated_qwen_cannot_be_enabled_by_config(tmp_path):
 
 
 def test_cancelled_cloud_response_cannot_be_used(tmp_path, monkeypatch):
-    audio = tmp_path / "recording.wav"; audio.write_bytes(b"recording")
+    audio = cloud_audio(tmp_path / "recording.wav")
     cancelled = threading.Event()
     def post(*a, **kw):
         cancelled.set()
-        return SimpleNamespace(status_code=200, json=lambda: {"text":"late response"})
+        return SimpleNamespace(status_code=200, json=lambda: {"text":"late response"}, close=lambda: None)
     monkeypatch.setattr(requests, "post", post)
     cloud = CloudProvider(SimpleNamespace(load=lambda: "fake"), SimpleNamespace(check=lambda model: None))
     with pytest.raises(RecognitionError) as exc:

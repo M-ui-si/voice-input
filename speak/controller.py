@@ -11,7 +11,8 @@ from pathlib import Path
 
 from .local import LocalProvider
 from .providers import CloudProvider, RecognitionError, Result
-from .recording import Recorder, split_wav
+from .recording import AudioSegment, Recorder, split_wav, split_live_wav
+from .merging import merge_cloud_text
 from .storage import History, SecretStore, apply_replacements
 
 
@@ -29,6 +30,10 @@ class Task:
     files: list = field(default_factory=list)
     terminal_accepted: bool = False
     preserve_audio: bool = False
+    error_code: str | None = None
+    cloud_error: RecognitionError | None = None
+    processed_segments: int = 0
+    review_boundaries: list[int] = field(default_factory=list)
 
 
 class Controller:
@@ -47,7 +52,7 @@ class Controller:
         self.events.put((task.id if task else None, kind, value))
 
     def start(self, target, target_window=None):
-        if self.state in ("recording", "processing"):
+        if self.state in ("recording", "paused", "processing"):
             return
         config = copy.deepcopy(self.settings)
         if config.mode == "cloud" and not self.secrets.load():
@@ -57,7 +62,8 @@ class Controller:
         task_id = uuid.uuid4().hex
         task = Task(task_id, self.history.audio_dir / f"{task_id}.wav", config, target)
         task.target_window = target_window
-        task.recorder = Recorder(task.path, config.microphone, task.segments.put if config.mode == "local" else None)
+        segmented = config.mode == "local" or config.cloud_segmented
+        task.recorder = Recorder(task.path, config.microphone, task.segments.put if segmented else None)
         self.history.clean()
         try:
             task.recorder.start()
@@ -68,7 +74,7 @@ class Controller:
         threading.Thread(target=self._run, args=(task,), daemon=True).start()
 
     def stop_recording(self):
-        if self.state != "recording":
+        if self.state not in ("recording", "paused"):
             return
         task = self.task
         self.state = "processing"
@@ -76,34 +82,90 @@ class Controller:
         task.stopped.set()
         task.segments.put(None)
 
+    def pause_recording(self):
+        if self.state != "recording":
+            return
+        task = self.task
+        try:
+            task.recorder.pause()
+            self.state = "paused"
+        except Exception:
+            task.recorder.error = "暂停麦克风失败，已有录音已保留。"
+            self.stop_recording()
+
+    def continue_recording(self):
+        if self.state != "paused":
+            return
+        task = self.task
+        try:
+            task.recorder.continue_recording()
+            self.state = "recording"
+        except Exception:
+            task.recorder.error = "无法重新打开麦克风，已有录音已保留，可重试识别。"
+            self.stop_recording()
+
+    @staticmethod
+    def _live_segments(task):
+        while not task.cancel.is_set():
+            try:
+                segment = task.segments.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if segment is None:
+                break
+            yield segment
+
     def _run(self, task, retry=False):
         progress = lambda value: self.emit(task, "progress", value)
         try:
-            if task.settings.mode == "local":
+            segmented = task.settings.mode == "local" or task.settings.cloud_segmented
+            if segmented:
                 text, elapsed = "", 0.0
                 if retry:
-                    segments = split_wav(task.path, self.history.audio_dir)
+                    segments = (split_wav(task.path, self.history.audio_dir) if task.settings.mode == "local"
+                                else split_live_wav(task.path, self.history.audio_dir))
                 else:
-                    def live_segments():
-                        while not task.cancel.is_set():
-                            try:
-                                segment = task.segments.get(timeout=0.2)
-                            except queue.Empty:
-                                continue
-                            if segment is None:
-                                break
-                            yield segment
-                    segments = live_segments()
-                for path in segments:
+                    segments = self._live_segments(task)
+                for item in segments:
+                    segment = item if isinstance(item, AudioSegment) else None
+                    path = segment.path if segment else item
                     task.files.append(path)
                     if task.cancel.is_set():
                         return
-                    result = self.local.segment(path, task.settings.terms, text, task.cancel, progress)
-                    text, elapsed = result.text, elapsed + result.elapsed
-                    if not task.stopped.is_set() and text:
-                        self.emit(task, "preview", text)
+                    if task.settings.mode == "local":
+                        boundary = segment is not None and segment.break_before
+                        result = self.local.segment(path, task.settings.terms, "" if boundary else text, task.cancel, progress)
+                        text = merge_cloud_text(text, result.text)[0] if boundary else result.text
+                    else:
+                        try:
+                            progress(f"云端识别第 {task.processed_segments + 1} 段…")
+                            result = self.cloud.transcribe(path, task.settings.terms, task.cancel,
+                                                           task.settings.cloud_model, progress=progress)
+                        except RecognitionError as exc:
+                            if task.cancel.is_set():
+                                return
+                            task.cloud_error = exc
+                            self.emit(task, "cloud_paused", str(exc))
+                            # Keep capturing the complete recording; do not return partial success.
+                            while not task.stopped.wait(.1):
+                                if task.cancel.is_set():
+                                    return
+                            raise exc
+                        if task.cancel.is_set():
+                            return
+                        text, review = merge_cloud_text(text, result.text, segment.overlap_frames if segment else 0)
+                        if review:
+                            task.review_boundaries.append(segment.index + 1 if segment else task.processed_segments + 1)
+                    elapsed += result.elapsed
+                    task.processed_segments += 1
+                    self.emit(task, "preview", apply_replacements(text, task.settings.replacements))
+                    label = "云端" if task.settings.mode == "cloud" else "本地"
+                    progress(f"{label}已处理 {task.processed_segments} 段 · 待处理 {task.segments.qsize() if not retry else '恢复中'}"
+                             + (" · 分段边界请检查" if task.review_boundaries else ""))
                     path.unlink(missing_ok=True)
-                result = Result(text, "local", "Qwen3-ASR-1.7B-q5_k", elapsed)
+                result = Result(text, task.settings.mode,
+                                "Qwen3-ASR-1.7B-q5_k" if task.settings.mode == "local" else task.settings.cloud_model,
+                                elapsed, tuple(task.review_boundaries))
             else:
                 while not task.stopped.wait(0.1):
                     if task.cancel.is_set():
@@ -124,9 +186,11 @@ class Controller:
             self.emit(task, "result", result)
         except RecognitionError as exc:
             if not task.cancel.is_set():
-                self.emit(task, "error", str(exc))
+                task.error_code = exc.code
+                self.emit(task, "error", RecognitionError(exc.code, str(exc)))
         except Exception as exc:
             if not task.cancel.is_set():
+                task.error_code = "internal"
                 self.emit(task, "error", f"处理失败（{type(exc).__name__}），录音已保留，可重试。")
         finally:
             if task.cancel.is_set() and not task.preserve_audio:
@@ -164,7 +228,7 @@ class Controller:
         threading.Thread(target=self._run, args=(task, True), daemon=True).start()
 
     def resume(self, path, mode):
-        if self.state in ("recording", "processing"):
+        if self.state in ("recording", "paused", "processing"):
             return
         config = copy.deepcopy(self.settings)
         config.mode = mode
@@ -194,9 +258,12 @@ class Controller:
         self.state = "idle"
 
     def shutdown(self):
-        if self.state == "error" and self.task:
+        if self.task and (self.state == "error" or self.task.cloud_error is not None
+                          or self.task.error_code in ("empty", "empty_audio")):
             # Closing an error window/app must honor "recording retained".
             # Explicit discard still uses cancel() with the default deletion behavior.
             self.task.preserve_audio = True
-        self.cancel()
-        self.local.stop()
+        try:
+            self.cancel()
+        finally:
+            self.local.stop()

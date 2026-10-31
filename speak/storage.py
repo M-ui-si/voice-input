@@ -5,7 +5,7 @@ import os
 import sqlite3
 import sys
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
@@ -29,6 +29,9 @@ class Settings:
     y: int = 140
     autostart: bool = False
     cloud_model: str = "FunAudioLLM/SenseVoiceSmall"
+    cloud_segmented: bool = True
+    collapsed: bool = False
+    dock_side: str = "left"
 
     @classmethod
     def load(cls, directory=DATA):
@@ -46,6 +49,9 @@ class Settings:
                 "y": lambda v: type(v) is int,
                 "autostart": lambda v: type(v) is bool,
                 "cloud_model": lambda v: v == "FunAudioLLM/SenseVoiceSmall",
+                "cloud_segmented": lambda v: type(v) is bool,
+                "collapsed": lambda v: type(v) is bool,
+                "dock_side": lambda v: v in ("left", "right"),
             }
             raw = {k: v for k, v in raw.items() if k in valid and valid[k](v)}
             return cls(**{k: v for k, v in raw.items() if k in cls.__dataclass_fields__})
@@ -57,6 +63,18 @@ class Settings:
         temp = directory / "settings.tmp"
         temp.write_text(json.dumps(asdict(self), ensure_ascii=False, indent=2), "utf-8")
         temp.replace(directory / "settings.json")
+
+    def update(self, changes, *, rule_baseline=None, directory=DATA):
+        """Merge edits from an older settings dialog without losing newly learned rules."""
+        changes = dict(changes)
+        if "replacements" in changes:
+            from .corrections import merge_rule_edits
+            changes["replacements"] = merge_rule_edits(
+                self.replacements, self.replacements if rule_baseline is None else rule_baseline,
+                changes["replacements"])
+        updated = replace(self, **changes)
+        updated.save(directory)
+        self.__dict__.update(updated.__dict__)
 
 
 class SecretStore:
@@ -92,6 +110,11 @@ class History:
         self.path = self.directory / "history.sqlite3"
         with self.connect() as db:
             db.execute("CREATE TABLE IF NOT EXISTS results (task_id TEXT PRIMARY KEY, created REAL, text TEXT, provider TEXT, model TEXT, elapsed REAL)")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(results)")}
+            if "edited_text" not in columns:
+                db.execute("ALTER TABLE results ADD COLUMN edited_text TEXT")
+            if "review_boundaries" not in columns:
+                db.execute("ALTER TABLE results ADD COLUMN review_boundaries TEXT NOT NULL DEFAULT '[]'")
         self.clean()
 
     def connect(self):
@@ -101,11 +124,16 @@ class History:
 
     def add(self, task_id, result):
         with self.connect() as db:
-            db.execute("INSERT OR REPLACE INTO results VALUES (?, ?, ?, ?, ?, ?)", (task_id, time.time(), result.text, result.provider, result.model, result.elapsed))
+            db.execute("INSERT INTO results (task_id, created, text, provider, model, elapsed, review_boundaries) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(task_id) DO NOTHING", (task_id, time.time(), result.text, result.provider, result.model, result.elapsed, json.dumps(result.review_boundaries)))
 
     def list(self):
         with self.connect() as db:
-            return db.execute("SELECT task_id, created, text, provider, model, elapsed FROM results ORDER BY created DESC LIMIT 300").fetchall()
+            return db.execute("SELECT task_id, created, text, provider, model, elapsed, edited_text, review_boundaries FROM results ORDER BY created DESC LIMIT 300").fetchall()
+
+    def save_edit(self, task_id, text):
+        with self.connect() as db:
+            if db.execute("UPDATE results SET edited_text=? WHERE task_id=?", (text, task_id)).rowcount != 1:
+                raise ValueError("这条历史已被清理，请先复制需要保留的文字。")
 
     def clean(self, active_paths=()):
         with self.connect() as db:

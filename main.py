@@ -65,6 +65,11 @@ def main():
         root.after(int(args.exit_after * 1000), app.close)
     root.mainloop()
     win32api.CloseHandle(mutex)
+    # The window is already gone and the instance lock is released. Finish our
+    # reapers before multiprocessing's interpreter-exit hooks touch these handles.
+    if not app.controller.local.wait_for_cleanup(30):
+        from speak.diagnostics import runtime_error
+        runtime_error("local_cleanup_pending_at_exit", TimeoutError())
 
 
 if __name__ == "__main__":

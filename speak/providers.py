@@ -31,6 +31,7 @@ class Result:
     provider: str
     model: str
     elapsed: float
+    review_boundaries: tuple[int, ...] = ()
 
 
 def shanghai_day():
@@ -96,6 +97,7 @@ class CloudProvider:
     def __init__(self, secrets, guard=None):
         self.secrets = secrets
         self.guard = guard or FreePriceGuard()
+        self.request_count = 0
 
     def transcribe(self, path, terms, cancel, model=SENSEVOICE, progress=None):
         if model != SENSEVOICE:
@@ -123,6 +125,7 @@ class CloudProvider:
             try:
                 # Reopen for every attempt; otherwise retries upload an exhausted stream.
                 with open(path, "rb") as audio:
+                    self.request_count += 1
                     response = requests.post(TRANSCRIBE_URL, headers={"Authorization": f"Bearer {key}"}, files={"file": ("recording.wav", audio, "audio/wav")}, data={"model": model}, timeout=(10, 90))
             except requests.RequestException:
                 raise RecognitionError("network", "云端连接失败或超时，录音已保留，可重试或选择本地识别。") from None

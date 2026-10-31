@@ -289,15 +289,30 @@ def parse_hotkey(text):
     return flags, code
 
 
-def position_floating(root, x, y):
+def position_floating(root, x, y, width=286, height=78):
     # Win32 uses actual virtual-desktop coordinates, including monitors left of the primary.
     monitor = win32api.MonitorFromPoint((int(x), int(y)), win32con.MONITOR_DEFAULTTONEAREST)
     left, top, right, bottom = win32api.GetMonitorInfo(monitor)["Work"]
-    x = max(left, min(int(x), right - 286))
-    y = max(top, min(int(y), bottom - 78))
+    x = max(left, min(int(x), right - width))
+    y = max(top, min(int(y), bottom - height))
     hwnd = win32gui.GetAncestor(root.winfo_id(), win32con.GA_ROOT)
-    win32gui.SetWindowPos(hwnd, 0, x, y, 286, 78,
+    win32gui.SetWindowPos(hwnd, 0, x, y, width, height,
                           win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER)
+
+
+def nearest_dock_side(anchor, work):
+    return "left" if anchor[0] + anchor[2] <= work[0] + work[2] else "right"
+
+
+def dock_geometry(work, y, side, collapsed=True):
+    """Keep either the small handle or expanded strip inside its monitor work area."""
+    if side not in ("left", "right"):
+        raise ValueError("Invalid dock side")
+    left, top, right, bottom = work
+    width, height = (22, 56) if collapsed else (286, 78)
+    width, height = min(width, right - left), min(height, bottom - top)
+    return (left if side == "left" else right - width,
+            max(top, min(int(y), bottom - height)), width, height)
 
 
 def preview_geometry(anchor, work, width=420, height=170, gap=8):
@@ -334,16 +349,32 @@ class WindowHooks:
         style = win32gui.GetWindowLong(self.hwnd, win32con.GWL_EXSTYLE)
         win32gui.SetWindowLong(self.hwnd, win32con.GWL_EXSTYLE, style | win32con.WS_EX_NOACTIVATE | win32con.WS_EX_TOOLWINDOW)
         self.previous = None
+        self.closed = False
+        self.pending_hotkeys = 0
+        self.poll_id = None
         def proc(hwnd, msg, wparam, lparam):
             if msg == win32con.WM_MOUSEACTIVATE:
                 return 3  # MA_NOACTIVATE
             if msg == win32con.WM_HOTKEY and wparam == self.HOTKEY_ID:
-                root.after(0, on_hotkey)
+                # Never re-enter Tcl from a native WndProc callback. Tk dispatches
+                # messages with its GIL released on some Python/Windows builds.
+                self.pending_hotkeys += 1
                 return 0
             return win32gui.CallWindowProc(self.previous, hwnd, msg, wparam, lparam)
         self.proc = proc
         self.previous = win32gui.SetWindowLong(self.hwnd, win32con.GWL_WNDPROC, self.proc)
         self.current = None
+        def poll():
+            if self.closed:
+                return
+            try:
+                while self.pending_hotkeys and not self.closed:
+                    self.pending_hotkeys -= 1
+                    on_hotkey()
+            finally:
+                if not self.closed:
+                    self.poll_id = root.after(25, poll)
+        self.poll_id = root.after(25, poll)
 
     def register(self, hotkey):
         flags, key = parse_hotkey(hotkey)
@@ -358,6 +389,13 @@ class WindowHooks:
         self.current = hotkey
 
     def close(self):
+        self.closed = True
+        if self.poll_id is not None:
+            try:
+                self.root.after_cancel(self.poll_id)
+            except Exception:
+                pass
+            self.poll_id = None
         user32.UnregisterHotKey(self.hwnd, self.HOTKEY_ID)
         if win32gui.IsWindow(self.hwnd):
             setter = user32.SetWindowLongPtrW

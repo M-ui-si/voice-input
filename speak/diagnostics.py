@@ -8,6 +8,18 @@ import wave
 from pathlib import Path
 
 
+def runtime_error(stage, error):
+    """Record lifecycle failures without audio, transcripts, keys or exception values."""
+    from .storage import DATA
+    try:
+        DATA.mkdir(parents=True, exist_ok=True)
+        with (DATA / "runtime-errors.jsonl").open("a", encoding="utf-8") as out:
+            out.write(json.dumps({"time": time.time(), "stage": stage,
+                                  "error_type": type(error).__name__}) + "\n")
+    except OSError:
+        pass
+
+
 def diagnose(output):
     output = Path(output).resolve()
     import psutil

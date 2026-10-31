@@ -29,10 +29,10 @@ def test_preview_hidden_if_button_fills_entire_work_area():
 def test_preview_stop_never_restarts_after_a_second_click():
     calls = []
     app = SimpleNamespace(controller=SimpleNamespace(state="recording"))
-    def toggle():
+    def stop():
         calls.append(1)
         app.controller.state = "processing"
-    app.toggle = toggle
+    app._stop_recording = stop
     App.stop_preview_recording(app)
     App.stop_preview_recording(app)
     app.controller.state = "idle"

@@ -76,6 +76,7 @@ def main():
             anchor = win32gui.GetWindowRect(app.hooks.hwnd)
             click(anchor[0] + 32, anchor[1] + 35)
             assert app.controller.state == "recording", "Floating button cannot start"
+            pump(.3)  # Deliberate stop, rather than an accidental start/stop double-click.
             preview = win32gui.GetWindowRect(app._preview_hwnd)
             assert (preview[2] <= anchor[0] or preview[0] >= anchor[2] or
                     preview[3] <= anchor[1] or preview[1] >= anchor[3]), (anchor, preview)

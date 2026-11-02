@@ -1,121 +1,123 @@
-# 轻声
+# Qingsheng (轻声)
 
-**说出来，留在输入框。**
+**Speak it. Keep it in your text field.**
 
-轻声是面向 Windows 的中文语音输入工具，适合向浏览器里的 Agent 口述需求、代码思路和技术问题。点击悬浮按钮或按快捷键录音，结束后把文字填到原输入框的光标位置，由你检查并发送。
+**English** | [简体中文](README.zh-CN.md)
 
-支持普通话夹英文技术词，提供云端转写与本地备用。云端默认边录边分段识别，本地也提供累计预览；结束后统一填入。两种模式均可暂停、继续。当前为个人试用版本，仓库名保留为 `voice-input`。
+Qingsheng is a Chinese voice input tool for Windows, designed for dictating requests, coding ideas, and technical questions to browser-based agents. Start recording with the floating button or a keyboard shortcut. When you finish, the transcript is inserted at the cursor in the original text field for you to review and send.
 
-[更新记录](CHANGELOG.md) · [本机验证](docs/verification.md) · [来源与许可证](docs/provenance.md)
+It supports Mandarin mixed with English technical terms, with cloud transcription and a local fallback. Cloud mode transcribes audio in segments by default, and local mode also offers a cumulative preview. The transcript is inserted when recording is complete. Both modes support pause and resume. This is currently a personal trial version; the repository retains the name `voice-input`.
 
-## 日常使用
+[Changelog (Chinese)](CHANGELOG.md) · [Local verification (Chinese)](docs/verification.md) · [Sources and licenses (Chinese)](docs/provenance.md)
 
-1. 启动轻声，点击目标网页的输入框，让文字光标出现。
-2. 点击悬浮条左侧按钮，或按 `Ctrl+Alt+Space` 开始录音。
-3. 再次点击或按快捷键停止；本地预览里也有“停止录音”。
-4. 等待文字填入原输入框，检查后自行发送。
+## Everyday use
 
-悬浮条中间区域可以拖动，右键或右侧菜单可打开设置、最近文字、取消和退出。快捷键可以修改，默认不开机启动。
+1. Launch Qingsheng and click the target text field on the web page so that the text cursor appears.
+2. Click the button on the left of the floating bar, or press `Ctrl+Alt+Space`, to start recording.
+3. Click or press the shortcut again to stop. The local preview also has a Stop recording (停止录音) button.
+4. Wait for the transcript to appear in the original text field, review it, and send it yourself.
 
-### 暂停与继续
+Drag the center of the floating bar to move it. Right-click or use the menu on the right to open Settings (设置), Recent text (最近文字), Cancel (取消), or Exit (退出). The shortcut is configurable, and launch at startup is disabled by default. The app's interface is currently in Chinese; key labels are included below for reference.
 
-预览窗口和右键菜单提供“暂停／继续”。暂停时麦克风停止采集，当前尾段继续识别；停顿时间不进入录音和计时。继续后沿用同一次任务与原输入框。暂停时点击停止按钮或按开始／停止快捷键，会结束本次并处理剩余片段。侧边箭头上的 `Ⅱ` 表示暂停。
+### Pause and resume
 
-### 从修改中记住纠错
+The preview window and right-click menu provide Pause / Resume (暂停／继续). Pausing stops microphone capture while transcription of the current trailing segment continues. Paused time is excluded from the recording and timer. Resuming keeps the same task and original text field. Clicking Stop or pressing the start/stop shortcut while paused finishes the recording and processes the remaining segments. A `Ⅱ` on the edge arrow indicates that recording is paused.
 
-右键 → 最近文字，选择记录并编辑，点击“保存修改”只保存该条修改稿，原文可通过“查看原文”查看。点击“记住纠错”后，逐项勾选、调整“原词 → 正确词”，再确认保存为全局规则；候选默认不勾选。单字差异需要补充完整词语，同一错词已有不同规则时会询问是否覆盖。
+### Remember corrections from your edits
 
-规则只用于之后的新录音，可在“设置 → 术语与纠错”修改或删除。清空历史不会清除规则；修改历史不会改动已经填入网页的文字。切换记录或关闭窗口时，可选择保存、放弃或返回编辑。
+Right-click → Recent text (最近文字), select a record, and edit it. Save edits (保存修改) saves only that record's edited version; View original (查看原文) shows the original transcript. Choose Remember corrections (记住纠错), select and adjust each “incorrect term → correct term” pair, and confirm to save global rules. Candidates are unchecked by default. Single-character differences require a complete word or phrase. If a different rule already exists for the same incorrect term, the app asks whether to replace it.
 
-### 收起到屏幕边缘
+Rules apply only to new recordings and can be edited or deleted under Settings → Terms and corrections (设置 → 术语与纠错). Clearing history does not remove rules, and editing history does not change text already inserted into a web page. When switching records or closing the window, you can save, discard, or return to editing.
 
-点击悬浮条右侧的“收起”，会贴到当前显示器较近的左／右边缘，只留下一个 **22 × 56 像素的小箭头**。右键菜单可指定收起到左边或右边，拖动小箭头可调整高度或换边。点击箭头只展开窗口，不开始录音；重启会记住收起状态和位置。
+### Collapse to the screen edge
 
-收起后，累计预览也隐藏，新的预览结果不会把窗口自动弹出来。收起不会停止正在进行的录音：箭头上的红点表示录音中，`Ctrl+Alt+Space` 仍可开始／停止；也可先展开再点击停止。展开后恢复最新预览。收起期间识别失败只更新状态，展开后可从按钮或菜单查看错误。
+Click Collapse (收起) on the right of the floating bar to dock it to the nearer left or right edge of the current monitor, leaving a **22 × 56 pixel arrow**. The right-click menu lets you choose either edge. Drag the arrow to change its height or move it to the other side. Clicking the arrow expands the bar without starting recording. Its position and collapsed state are remembered after restart.
 
-如果识别期间切走了窗口，结果会等待最多 30 秒；点回原输入框可继续填入。超时后从“最近文字”或“查看本次结果”复制。识别成功后不会自动弹出文字转移窗口。
+Collapsing also hides the cumulative preview, and new preview results will not reopen it. Recording continues while collapsed: a red dot on the arrow indicates active recording, and `Ctrl+Alt+Space` still starts or stops it. You can also expand the bar and click Stop. Expanding restores the latest preview. Recognition failures while collapsed update the status only; expand the bar to view the error through the button or menu.
 
-可以在原输入框内移动光标、选择或编辑文字，最终按完成时的光标／选区插入。切到其他输入框不会把结果改填过去。
+If you switch away during recognition, the result waits for up to 30 seconds. Return to the original text field to allow insertion. After the timeout, copy the text from Recent text (最近文字) or View current result (查看本次结果). Successful recognition does not automatically open a text-transfer window.
 
-## 选择识别方式
+You can move the cursor, select text, or edit within the original text field. The transcript is inserted at the cursor or selection present when processing completes. Switching to another text field does not redirect the result there.
 
-| | 云端模式 | 本地模式 |
+## Choose a recognition mode
+
+| | Cloud mode | Local mode |
 | --- | --- | --- |
-| 识别引擎 | 硅基流动 `FunAudioLLM/SenseVoiceSmall` | Qwen3-ASR-1.7B，ONNX＋GGUF q5_k |
-| 首次准备 | 保存自己的硅基流动 API Key | 下载并校验模型和运行库 |
-| 显示文字 | 默认分段累计预览，结束后统一填入；设置可切回整段模式 | 录制期间分段预览，停止后确认并填入 |
-| 网络 | 需要联网，会上传录音 | 模型准备完成后可离线识别 |
-| 本机资源 | 不加载本地推理模型 | 任务开始时加载，使用内存及可能的显存 |
+| Engine | SiliconFlow `FunAudioLLM/SenseVoiceSmall` | Qwen3-ASR-1.7B, ONNX + GGUF q5_k |
+| Initial setup | Save your own SiliconFlow API key | Download and verify the model and runtime |
+| Transcript display | Cumulative segment previews by default, with insertion at completion; whole-recording mode is available in settings | Segment previews during recording, followed by confirmation and insertion after stopping |
+| Network | Requires internet access and uploads recordings | Works offline once the model is ready |
+| Local resources | Does not load a local inference model | Loads the model when a task starts, using RAM and possibly GPU memory |
 
-本地每约 8 秒形成一段新音频，并保留 2 秒重叠供合并。这是分段策略，不保证每 8 秒就能显示新文字；实际延迟取决于加载和推理速度。本地空闲 5 分钟后释放模型，切回云端立即释放。GPU 初始化失败会尝试 CPU。
+Local mode creates a segment for roughly every 8 seconds of new audio, retaining 2 seconds of overlap for merging. This is a segmentation policy, not a guarantee of new text every 8 seconds; actual latency depends on model loading and inference speed. The model is released after 5 minutes of local inactivity, or immediately when switching to cloud mode. If GPU initialization fails, the app tries the CPU.
 
-本地加载和识别每约 5 秒更新已等待时间，右键可取消。首次模型／GPU 初始化可能较慢；空闲或退出时模型由后台释放，驱动收尾可能需要数秒。2026-10-31 已修复空闲检查等待推理锁及退出异常导致窗口停止刷新的问题，见 [专项记录](docs/local-hang-2026-10-31.md)。
+During local loading and recognition, the elapsed wait time updates roughly every 5 seconds. You can cancel through the right-click menu. Initial model or GPU setup may be slow. Model cleanup runs in the background on idle or exit, and driver cleanup may take a few seconds. Fixes on 2026-10-31 addressed UI freezes caused by idle checks waiting for the inference lock and by shutdown exceptions; see the [incident report (Chinese)](docs/local-hang-2026-10-31.md).
 
-云端分段同样每约 8 秒新音频提交一次，后续片段带最多 2 秒重叠，按顺序串行请求；停止或暂停会提交尾段。录音仍会完整保存在本机供失败恢复。无法可靠去重的边界保留两侧文字，并在预览、完成状态和历史中提示检查。云端处理较慢时可能积压片段，8 秒不是返回速度保证。设置取消勾选“云端边录边识别”可恢复结束后整段上传。
+Cloud segmentation likewise submits roughly every 8 seconds of new audio, with up to 2 seconds of overlap on subsequent segments. Requests run sequentially, and stopping or pausing submits the trailing segment. The complete recording remains on the computer for recovery. When a boundary cannot be reliably deduplicated, both sides are retained, with a review prompt in the preview, completion status, and history. Slow cloud processing can create a backlog; 8 seconds is not a response-time guarantee. Uncheck Transcribe while recording in the cloud (云端边录边识别) in settings to upload the whole recording after stopping instead.
 
-### 配置云端
+### Set up cloud transcription
 
-在硅基流动完成账号注册及平台要求的实名认证，将自己的 API Key 填入“设置 → 输入与云端”并保存。
+Register with SiliconFlow, complete any identity verification required by the provider, and save your own API key under Settings → Input and cloud (设置 → 输入与云端).
 
-保存成功后显示绿色“已保存并加密”。再次打开设置时输入框留空是正常的：密钥不回显，留空保存会保留原密钥，“删除密钥”才会清除。
+A green Saved and encrypted (已保存并加密) status confirms success. The field is intentionally blank when you reopen settings: saved keys are never displayed. Saving a blank field keeps the existing key; only Delete key (删除密钥) removes it.
 
-软件仅启用已允许的 SenseVoiceSmall，并在每次启动、每日首次使用时核对官方免费价格。无法确认免费时暂停调用，不自动切换收费模型。云端 Qwen 未开放，也不承诺服务商永久免费；账号权限和可用性由硅基流动决定。
+The app enables only the allowlisted SenseVoiceSmall model and checks the official free pricing at startup and on the first use each day. If it cannot confirm that calls are free, it pauses requests rather than switching to a paid model. Cloud Qwen is not enabled. The app does not promise that the provider will remain free; account access and availability are controlled by SiliconFlow.
 
-### 准备本地备用
+### Prepare the local fallback
 
-进入“设置 → 本地备用”，选择“准备 / 继续下载本地模型”，也可导入已有模型目录。下载支持暂停续传，下载文件按固定 SHA-256 校验。模型压缩包约 1.95 GB，解压文件和运行库需要额外磁盘空间；文件大小不等于运行内存占用。
+Open Settings → Local fallback (设置 → 本地备用) and choose Prepare / Resume local model download (准备 / 继续下载本地模型), or import an existing model directory. Downloads support pause and resume and are verified against pinned SHA-256 hashes. The model archive is about 1.95 GB; extracted files and the runtime require additional disk space. File size does not indicate runtime memory usage.
 
-模型就绪后选择“本地准确模式”并保存。这个选项名称不代表已通过定量准确率验收，实际效果需要按自己的口述测试。
+Once the model is ready, select Local accuracy mode (本地准确模式) and save. This option's name does not mean that quantitative accuracy acceptance testing has passed; test it with your own dictation.
 
-## 最近更新
+## Recent updates
 
-- **浏览器直接填入**：支持富文本编辑器；临时失焦后可以返回原输入框，同框内编辑不会使任务失效。
-- **云端故障恢复**：HTTP 500／502／503／504 最多重试两次，每次重传完整录音；可取消，持续失败可选本地识别。
-- **失败录音保留**：失败状态退出软件后仍保留录音；手动重试继续校验原编辑器身份。
-- **预览不挡按钮**：屏幕边缘自动避让，拖动时同步调整；新增停止按钮，重复点击不会重新录音。
-- **纠错积累与暂停续录**：历史修改稿保留原文，规则逐项确认；云端分段预览，云端／本地暂停期间不录音。
+- **Direct browser insertion:** supports rich-text editors and returning to the original field after temporary focus loss. Editing within that field does not invalidate the task.
+- **Cloud recovery:** retries HTTP 500 / 502 / 503 / 504 up to twice, re-uploading the complete recording each time. You can cancel or choose local recognition after continued failure.
+- **Failed recording retention:** recordings survive app exit after a failure. Manual retries still validate the original editor's identity.
+- **Accessible preview controls:** the preview adjusts near screen edges and follows dragging. A dedicated Stop button is available, and repeated clicks do not restart recording.
+- **Saved corrections and pause/resume:** edited history retains the original transcript, correction rules require individual confirmation, cloud mode provides segment previews, and neither mode captures audio while paused.
 
-完整说明见 [CHANGELOG](CHANGELOG.md)。
+See the [changelog (Chinese)](CHANGELOG.md) for details.
 
-## 常见问题
+## Frequently asked questions
 
-**识别后没有直接填入？**
+**Why wasn't the transcript inserted directly?**
 
-先确认录音前已经点进文字输入框。完成后点回同一个输入框等待填入；超过 30 秒可从历史复制。无法确认可写控件、特殊剪贴板格式、管理员权限窗口等情况可能需要手动粘贴。软件不会强行切换焦点或自动发送。
+Make sure you clicked into a text field before recording. Return to that same field after processing and wait for insertion. After 30 seconds, copy from history instead. Manual pasting may be necessary when the app cannot confirm an editable control, when the clipboard contains special formats, or when the target window runs as administrator. The app does not force focus changes or send messages automatically.
 
-**云端返回 HTTP 500，或网络断开？**
+**What if the cloud returns HTTP 500 or the network disconnects?**
 
-临时服务错误会有限重试，网络错误、账号权限和限流等会显示提示。可选择“重试云端”或“本地识别”，无需重录；不会在失败后自动加载本地模型。无效密钥、额度及权限错误不会反复重试。
+Temporary server errors receive a limited number of retries. Network errors, account permissions, and rate limits produce a message. Choose Retry cloud (重试云端) or Local recognition (本地识别) without recording again. Failure does not automatically load the local model. Invalid keys, quota errors, and permission errors are not repeatedly retried.
 
-云端分段在录制中持续失败时，会暂停后续云端请求并提示，麦克风继续录音；仍可暂停或结束。结束后选择重试云端、本地识别或丢弃，不会自动填入缺段结果。重试从完整录音重新处理，不混用上一轮片段文字。2026-10-27 本机真实云端测试返回 HTTP 402，因此此次分段真实接口及提速效果尚未验收。
+If cloud segments keep failing during recording, further cloud requests pause and the app shows a warning while the microphone continues recording. You can still pause or stop. After stopping, choose cloud retry, local recognition, or discard; incomplete segment results are not automatically inserted. Retrying processes the complete recording from scratch without mixing in text from the previous attempt. A real cloud test on 2026-10-27 returned HTTP 402, so real-service acceptance of segmentation and its speed benefits remains incomplete.
 
-**退出后想恢复失败录音？**
+**How do I recover a failed recording after exiting?**
 
-右键悬浮条 → 最近文字 → 恢复暂存录音，选择 WAV 文件，按当前识别模式继续处理。暂存录音最多保留 24 小时，需及时恢复。明确取消或“丢弃并重录”会删除当前录音。
+Right-click the floating bar → Recent text → Recover temporary recording (最近文字 → 恢复暂存录音), choose a WAV file, and continue with the current recognition mode. Temporary recordings are retained for up to 24 hours, so recover them promptly. Explicit cancellation or Discard and record again (丢弃并重录) deletes the current recording.
 
-**快速点击后显示“未录到有效语音”？**
+**Why do rapid clicks produce “No valid speech recorded” (未录到有效语音)?**
 
-极短录音可能尚未收到音频。软件会关闭旧预览并恢复可重新录音状态，可再次点击开始。开始后的结束请求不会因连点保护而被忽略；展开／收起后的连点仍会短暂隔离，避免误触新布局中的录音或菜单。
+Very short recordings may end before any audio arrives. The app closes the old preview and returns to a state where you can start again. Stop requests after recording begins are not ignored by rapid-click protection. Clicks immediately after expanding or collapsing are briefly guarded to avoid accidentally activating recording or menu controls in the new layout.
 
-**个人术语为什么没有强制生效？**
+**Why aren't my custom terms enforced?**
 
-默认包含 Codex、Claude、GitHub、API、MCP、Python，以及 IDA、Ghidra、GDB、ELF、PE、ROP、ASLR、DEP、UAF 等词。云端接口没有接入热词参数，本地也不把整张词表传入解码器，以免把词表本身识别出来。
+Default terms include Codex, Claude, GitHub, API, MCP, Python, IDA, Ghidra, GDB, ELF, PE, ROP, ASLR, DEP, and UAF. The cloud integration does not pass hotword parameters. Local mode also avoids passing the entire vocabulary to the decoder, which could cause the vocabulary itself to appear in the transcript.
 
-可在“术语与纠错”添加确认过的 `错词=正确词` 规则。错词至少两个字符，英文按词边界处理，不做模糊替换或 LLM 润色。
+Add confirmed `incorrect term=correct term` rules under Terms and corrections (术语与纠错). Incorrect terms must contain at least two characters. English replacements respect word boundaries. The app does not use fuzzy replacement or LLM rewriting.
 
-## 数据与隐私
+## Data and privacy
 
-- 云端模式上传录音到硅基流动；本地模式在本机识别，使用私有进程管道，不开放网络服务端口。
-- API Key 使用 Windows DPAPI 加密，与当前 Windows 用户绑定；迁移电脑时应重新填写。
-- 最近文字保存 7 天。成功识别并保存结果后删除录音，失败录音最多保留 24 小时；设置可清空文字和录音。
-- 粘贴时尝试保存并恢复原剪贴板，用户期间新复制的内容优先保留；无法安全备份时不自动粘贴。
-- 本机删除记录不代表删除服务商侧数据，云端数据处理以服务商政策为准。
+- Cloud mode uploads recordings to SiliconFlow. Local mode recognizes speech on the computer through private process pipes without opening a network service port.
+- API keys are encrypted with Windows DPAPI and bound to the current Windows user. Enter your key again when moving to another computer.
+- Recent text is retained for 7 days. Recordings are deleted after successful recognition and result storage; failed recordings are retained for up to 24 hours. Settings let you clear text and recordings.
+- Pasting attempts to preserve and restore the clipboard, giving priority to anything you copy during the operation. If a safe backup is not possible, automatic pasting is skipped.
+- Deleting local records does not delete data held by the provider. Cloud data handling is subject to the provider's policies.
 
-仓库不包含个人密钥、录音、历史数据库、桌面截图、模型或构建产物。请勿上传自己的 `data/` 目录。
+The repository excludes personal keys, recordings, history databases, desktop screenshots, models, and build artifacts. Do not upload your own `data/` directory.
 
-## 从源码运行
+## Run from source
 
-仓库提供源码，这次更新未上传可直接下载的 EXE。需要 Windows x64、Python 3.14，以及固定版本的上游源码。
+This repository provides source code. This update does not include a downloadable EXE. You need Windows x64, Python 3.14, and the pinned upstream source.
 
 ```powershell
 git clone --recurse-submodules https://github.com/M-ui-si/voice-input.git
@@ -125,9 +127,9 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe main.py --settings
 ```
 
-普通克隆后若缺少上游源码，执行 `git submodule update --init --recursive`。保持固定提交，不要直接升级到上游最新分支。
+If you cloned without the upstream source, run `git submodule update --init --recursive`. Keep the pinned commit rather than updating directly to the latest upstream branch.
 
-### 构建与检查
+### Build and check
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 -m pytest -q
@@ -135,35 +137,35 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 .\.venv\Scripts\python.exe -X utf8 scripts\package_probe.py
 ```
 
-构建结果在 `dist-review\Speak\`。构建后可双击根目录的 `启动轻声.vbs`，或运行 `dist-review\Speak\Speak.exe`。保留项目布局和 `_internal` 依赖；`portable-root.json` 将数据及模型位置指向项目根目录，不能只拷贝一个 EXE。
+Build output goes to `dist-review\Speak\`. After building, double-click `启动轻声.vbs` in the repository root or run `dist-review\Speak\Speak.exe`. Preserve the project layout and `_internal` dependencies: `portable-root.json` points data and model locations to the project root, so copying the EXE alone is insufficient.
 
-`scripts/` 提供原生输入、Edge／Grok 草稿填入、预览按钮和打包启动探针。`cloud_recovery_probe.py --mode cloud` 会生成固定测试语音并调用云端；`evaluate.py` 用于带人工参考文本的真实录音评估。运行交互探针期间请避免其他桌面操作。
+The `scripts/` directory includes probes for native input, Edge / Grok draft insertion, preview buttons, and packaged startup. `cloud_recovery_probe.py --mode cloud` generates fixed test speech and calls the cloud service; `evaluate.py` evaluates real recordings against human reference transcripts. Avoid other desktop interactions while running interactive probes.
 
-## 验证到什么程度
+## Verification status
 
-截至 2026-10-31 的本机记录（新增本地识别及退出验证见 [专项记录](docs/local-hang-2026-10-31.md)）：
+Local records as of 2026-10-31, with additional local recognition and exit checks in the [incident report (Chinese)](docs/local-hang-2026-10-31.md):
 
-| 范围 | 结果与边界 |
+| Area | Results and limits |
 | --- | --- |
-| 自动化回归 | 144 项通过，覆盖历史纠错、分段续录、故障录音保留、旧任务隔离、本地模型退出及界面刷新保护等 |
-| 浏览器填入 | 原生 EDIT、隔离 Edge 富文本页面及 Grok 网页草稿通过；使用模拟识别文字，未发送消息 |
-| 云端真实接口 | 10 月 22 日约 5 秒合成中文语音成功转写，约 2 秒返回；不代表真人精度或长录音性能达标 |
-| 预览交互 | 4 个实际屏幕位置的开始／停止和预览停止按钮点击通过；使用模拟任务 |
-| 侧边收起 | 左／右箭头点击、拖动、重启记忆、物理快捷键及焦点保持通过；使用模拟任务 |
-| 快速点击 | 120 次桌面连点、空输入恢复和结果窗口去重通过；使用模拟录音器 |
-| 录音按钮 | 18 轮真实麦克风快速启停及 10 次按钮连点通过；不识别／上传，测试音频已删除 |
-| 本次新增桌面流程 | 实际点击暂停／继续、单次填入、历史修改及规则确认通过；使用合成 PCM 和模拟 ASR，无回调错误 |
-| 暂停采集 | 真实麦克风暂停期间帧数不变，继续后正常接续；未识别／上传，测试音频已删除 |
-| 本次云端验收限制 | 首个 60 秒合成音频请求返回 HTTP 402，未继续请求；1／3／5 分钟实测与提速结论待补 |
-| 功能修复构建 | 本机 EXE 启动、退出和界面回调检查通过；空闲测试未加载本地模型 |
-| 仍需验收 | 真人中文／技术词准确率、1／3／5 分钟延迟、GPU 峰值及更多真实站点 |
+| Automated regression | 144 tests passed, covering history corrections, segmented pause/resume, failed recording retention, stale-task isolation, local model shutdown, UI refresh protection, and more |
+| Browser insertion | Passed native EDIT, an isolated Edge rich-text page, and Grok web draft checks; used simulated recognition text and sent no messages |
+| Real cloud API | On October 22, successfully transcribed about 5 seconds of synthetic Chinese speech in about 2 seconds; this does not establish accuracy for human speech or performance on long recordings |
+| Preview interaction | Start/stop and preview Stop button clicks passed at 4 physical screen positions; used simulated tasks |
+| Edge docking | Left/right arrow clicks, dragging, restart persistence, physical shortcuts, and focus retention passed; used simulated tasks |
+| Rapid clicks | 120 desktop clicks, empty-input recovery, and result-window deduplication passed; used a simulated recorder |
+| Recording button | 18 rounds of rapid start/stop with a real microphone and 10 repeated button clicks passed; no recognition or upload, and test audio was deleted |
+| Added desktop flows | Actual pause/resume clicks, single insertion, history editing, and rule confirmation passed with synthetic PCM and simulated ASR; no callback errors |
+| Paused capture | Real microphone frame counts stayed unchanged while paused and continued normally after resume; no recognition or upload, and test audio was deleted |
+| Cloud acceptance limit | The first 60-second synthetic audio request returned HTTP 402, and no further requests were made; 1 / 3 / 5 minute measurements and speed conclusions remain pending |
+| Fix build | Local EXE startup, exit, and UI callback checks passed; the idle test did not load a local model |
+| Still to verify | Human Mandarin and technical-term accuracy, 1 / 3 / 5 minute latency, peak GPU memory usage, and more real websites |
 
-数字、否定词和安全技术术语仍需人工检查。详细证据、历史记录及限制见 [验证记录](docs/verification.md)。
+Numbers, negations, and security terminology still need human review. See the [verification records (Chinese)](docs/verification.md) for evidence, history, and limitations.
 
-## 开发基础与许可证
+## Foundation and licenses
 
-基于 [CapsWriter-Offline](https://github.com/HaujetZhao/CapsWriter-Offline)，固定提交 `84912d5218ee5e51e216c54dc15a1cb0f466eb76`，推理运行库来源为上游 v2.6。桌面交互、云端适配、录音队列、目标校验和任务管理由本项目补充。
+Based on [CapsWriter-Offline](https://github.com/HaujetZhao/CapsWriter-Offline), pinned to commit `84912d5218ee5e51e216c54dc15a1cb0f466eb76`, with inference runtimes from upstream v2.6. This project adds desktop interactions, cloud integration, recording queues, target validation, and task management.
 
-上游源码采用 MIT；Qwen3-ASR 原始模型按其 Apache-2.0 模型卡记录。运行库、转换模型与 Python 依赖分别保留各自许可证。具体版本、来源、校验值及再分发边界见 [来源记录](docs/provenance.md)。
+The upstream source uses MIT. The original Qwen3-ASR model is documented under Apache-2.0 in its model card. Runtimes, converted models, and Python dependencies retain their respective licenses. See the [provenance records (Chinese)](docs/provenance.md) for versions, sources, checksums, and redistribution limits.
 
-参考：[转写接口](https://docs.siliconflow.cn/docs/api/audio-transcriptions-post) · [官方价格](https://siliconflow.cn/pricing) · [Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B)
+References: [Transcription API](https://docs.siliconflow.cn/docs/api/audio-transcriptions-post) · [Official pricing](https://siliconflow.cn/pricing) · [Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B)
